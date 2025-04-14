@@ -1,0 +1,215 @@
+BotNutri v1.0 - Coleta de Feedback
+
+📄 Resumo atual do BotNutri (v1.0)
+🔐 Acesso:
+
+Tela de login/cadastro funcional via Supabase
+
+🥗 Funcionalidade:
+
+Chatbot com ChatGPT 3.5 integrado
+
+Geração de plano alimentar de 1 dia
+
+Dieta adaptada com base nos dados e alimentos acessíveis
+
+📊 Formulário inclui:
+
+Idade, peso, altura, objetivo, sexo, nível de atividade, horários
+
+⚙️ Falta implementar:
+
+Separar almoço e janta com refeições diferentes
+
+Etapa inicial de seleção dos 10 alimentos por grupo (vegetal, proteína, carboidrato)
+
+Funcionalidade de compra/desbloqueio da dieta semanal (R$19,90)
+
+Histórico de dietas (opcional)
+
+
+
+
+
+
+
+
+Item	Status	Feedback
+Tela de login simples e clara	✅ / ❌	-
+Escolha de alimentos comuns	✅ / ❌	-
+Formulário fácil de preencher	✅ / ❌	-
+Dieta personalizada fez sentido	✅ / ❌	-
+Diferença entre almoço e jantar clara	✅ / ❌	-
+Chatbot responde bem dúvidas?	✅ / ❌	-
+Design e experiência visual	✅ / ❌
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import React, { useState } from "react";
+import { toast } from "@/components/ui/use-toast";
+import { UserFormData, DietPlan as DietPlanType } from "@/types/form";
+import { generateDietPlan } from "@/services/dietService";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+
+import Header from "@/components/Header";
+import UserForm from "@/components/UserForm";
+import DietPlan from "@/components/DietPlan";
+import FullPlanOffer from "@/components/FullPlanOffer";
+import NutritionChatbot from "@/components/NutritionChatbot";
+import AuthForm from "@/components/AuthForm";
+import FoodSelection from "@/components/FoodSelection";
+
+const Index = () => {
+  const { isAuthenticated, login } = useAuth();
+  const [dietPlan, setDietPlan] = useState<DietPlanType | null>(null);
+  const [showFullPlanOffer, setShowFullPlanOffer] = useState(false);
+  const [showFoodSelection, setShowFoodSelection] = useState(true);
+  const [selectedFoods, setSelectedFoods] = useState<{
+    vegetables: string[];
+    proteins: string[];
+    carbs: string[];
+  }>({
+    vegetables: [],
+    proteins: [],
+    carbs: []
+  });
+
+  const handleFoodSelectionComplete = (foods: {
+    vegetables: string[];
+    proteins: string[];
+    carbs: string[];
+  }) => {
+    setSelectedFoods(foods);
+    setShowFoodSelection(false);
+  };
+
+  const handleFormSubmit = (data: UserFormData) => {
+    try {
+      // Adiciona os alimentos selecionados aos dados do usuário
+      const userDataWithFoods = {
+        ...data,
+        selectedFoods
+      };
+      
+      // Calcular a dieta com base nos dados do usuário
+      const plan = generateDietPlan(userDataWithFoods);
+      setDietPlan(plan);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (error) {
+      toast({
+        title: "Erro ao gerar dieta",
+        description: "Houve um problema ao processar seus dados. Por favor, tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRequestFullPlan = () => {
+    setShowFullPlanOffer(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleBuyPlan = () => {
+    toast({
+      title: "Compra iniciada!",
+      description: "Você será redirecionado para a página de pagamento.",
+    });
+    // Aqui seria implementada a lógica de redirecionamento para o checkout/pagamento
+  };
+
+  const handleAuthenticated = (userData: { name: string; email: string }) => {
+    login(userData);
+  };
+
+  const handleResetFoodSelection = () => {
+    setShowFoodSelection(true);
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-green-50">
+      <Header />
+      
+      <main className="flex-1 container py-8 px-4">
+        {!isAuthenticated ? (
+          <AuthForm onAuthenticated={handleAuthenticated} />
+        ) : (
+          <>
+            {!dietPlan && !showFullPlanOffer && showFoodSelection && (
+              <FoodSelection onComplete={handleFoodSelectionComplete} />
+            )}
+            
+            {!dietPlan && !showFullPlanOffer && !showFoodSelection && (
+              <div className="max-w-4xl mx-auto">
+                <div className="mb-8 text-center">
+                  <h2 className="text-3xl md:text-4xl font-bold mb-4 gradient-text">
+                    Monte sua dieta personalizada em segundos
+                  </h2>
+                  <p className="text-lg text-muted-foreground">
+                    Complete o formulário abaixo com suas informações para receber um plano alimentar adaptado para você.
+                  </p>
+                </div>
+                <div className="mb-4 text-center">
+                  <Button 
+                    variant="outline" 
+                    onClick={handleResetFoodSelection}
+                    className="text-sm"
+                  >
+                    ← Voltar para seleção de alimentos
+                  </Button>
+                </div>
+                <UserForm onSubmit={handleFormSubmit} />
+              </div>
+            )}
+            
+            {dietPlan && !showFullPlanOffer && (
+              <DietPlan plan={dietPlan} onRequestFullPlan={handleRequestFullPlan} />
+            )}
+            
+            {showFullPlanOffer && (
+              <FullPlanOffer 
+                onBack={() => setShowFullPlanOffer(false)}
+                onBuy={handleBuyPlan}
+              />
+            )}
+          </>
+        )}
+      </main>
+      
+      <footer className="bg-muted py-4 px-6 text-center text-sm text-muted-foreground">
+        <div className="container">
+          <p>© {new Date().getFullYear()} BotNutri - Sua Dieta Personalizada</p>
+        </div>
+      </footer>
+      
+      <NutritionChatbot />
+    </div>
+  );
+};
+
+export default Index;
